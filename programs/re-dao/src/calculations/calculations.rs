@@ -1,6 +1,32 @@
 use anchor_lang::prelude::*;
 use crate::errors::OrArithError;
 
+pub fn total_emissions_at_epoch(genesis_supply: u64, epoch: u32) -> Result<u64> {
+    //supply = genesis_supply * sum(1 /2^n) where n is us the amount of iterations
+    let mut sum = 0 as u64;
+    for n in 0..epoch {
+        let eq_0 = (2 as u64).checked_pow(n).or_arith_error()?;
+        let eq_1 = (1 as u64).checked_div(eq_0).or_arith_error()?;
+        sum = sum.checked_add(eq_1).or_arith_error()?;
+    } 
+    let supply = genesis_supply.checked_mul(sum).or_arith_error()?;
+    Ok(supply)
+}
+
+pub fn epoch_emissions(epoch: u32, genesis_emissions: u64) -> Result<u64> {    
+    //e = genesis base emissions / 2^epoch
+    let eq_0 = (2 as u64).checked_pow(epoch.into()).or_arith_error()?;
+    let eq_final = genesis_emissions.checked_div(eq_0).or_arith_error()?;
+    Ok(eq_final)
+}
+
+pub fn epoch_emission_rate(epoch: u32, genesis_emission_rate: u64) -> Result<u64> {
+    //e = genesis base emissions / 2^epoch
+    let eq_0 = (2 as u64).checked_pow(epoch.into()).or_arith_error()?;
+    let eq_final = genesis_emission_rate.checked_div(eq_0).or_arith_error()?;
+    Ok(eq_final)
+}
+
 pub fn surplus(quote_bonded: u64, reserve: u64) -> Result<u64> {
     //quote bonded - reserve
     let eq_final = quote_bonded.checked_sub(reserve).or_arith_error()?;

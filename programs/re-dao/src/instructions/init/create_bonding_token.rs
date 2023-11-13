@@ -186,7 +186,7 @@ pub fn handle(ctx: Context<CreateBondingToken>, id: String, params: CreateBondin
     token_state.total_reserve = 0;
     token_state.total_surplus_reserve = 0;
     token_state.total_runway_reserve = 0;
-    token_state.bps = 10000;
+    token_state.bps = 100000;
     if params.runway_fee > token_state.bps {
         return Err(error!(CustomErrorCode::RunwayFeeError));
     }

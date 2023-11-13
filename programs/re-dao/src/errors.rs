@@ -23,6 +23,10 @@ impl OrArithError<u8> for Option<u8> {
 
 #[error_code]
 pub enum CustomErrorCode {
+    #[msg("CouponClaimedError")]
+    CouponClaimedError,
+    #[msg("CouponDateError")]
+    CouponDateError,
     #[msg("Reserve delta mismatch.")]
     ReserveDeltaMismatchError,
     #[msg("Runway fee can't exceed 100%.")]

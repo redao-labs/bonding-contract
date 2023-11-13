@@ -48,7 +48,6 @@ pub struct BondingVaultTopup<'info> {
 }
 
 pub fn handle(ctx: Context<BondingVaultTopup>, amount: u64) -> Result<()> {
-    
     let token_state = &mut ctx.accounts.token_state;
     //increment total topup
     token_state.total_topup = token_state.total_topup.checked_add(amount).or_arith_error()?;

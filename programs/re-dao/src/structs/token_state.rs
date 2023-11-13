@@ -18,6 +18,8 @@ pub struct TokenState {
     pub total_runway_reserve: u64,
     pub creator_address: Pubkey, //200
     //state
+    pub genesis_emission_rate: u64,
+    pub genesis_supply: u64,
     pub epoch_count: u32, //232 //current epoch
     pub next_halving: u64, //296 //total supply needed for next epoch
     pub current_epoch_emissions: u64, //supply emitted this epoch

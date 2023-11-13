@@ -1,3 +1,4 @@
+use crate::calculations::calculations::{total_emissions_at_epoch, epoch_emissions, epoch_emission_rate};
 use crate::errors::{CustomErrorCode, OrArithError};
 use crate::structs::{BondVote, TokenState, TokenTrackerBase, BondCoupon};
 use crate::utils::ascii_trim::TrimAsciiWhitespace;
@@ -5,12 +6,14 @@ use crate::{
     calculations::calculations::{bond_amount, bond_reward, fee, floor_price, reserve, surplus},
     transfers::transfers,
 };
+use anchor_lang::solana_program::vote;
 use anchor_lang::{prelude::*, solana_program::system_program};
 use anchor_spl::token::{self, Token, TokenAccount};
+use anchor_lang::prelude::Clock;
 
 //TODO, store how much bonded and emitted through each period value!
 #[derive(Accounts)]
-#[instruction()]
+#[instruction(id: String)]
 pub struct Bond<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -25,12 +28,6 @@ pub struct Bond<'info> {
         bump = token_state.token_state_bump
     )]
     pub token_state: Box<Account<'info, TokenState>>,
-    #[account(
-        mut,
-        seeds = [token_state.key().as_ref(), b"base_token".as_ref()],
-        bump = token_state.base_token_vault_bump
-    )]
-    pub base_token_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &user_quote_token.mint == &token_state.quote_mint_address,
@@ -57,26 +54,33 @@ pub struct Bond<'info> {
     pub quote_surplus_token_address: Box<Account<'info, TokenAccount>>,
     #[account(
         init,
-        seeds = [token_state.key().as_ref(), user.key().as_ref(), 
-        token_state.bond_coupon_count
-        .checked_add(1)
-        .or_arith_error()?
-        .to_string().as_bytes()],
+        seeds = [token_state.key().as_ref(), user.key().as_ref(), id.as_bytes()],
         bump,
         payer = user,
         space=420
     )]
     pub coupon: Box<Account<'info, BondCoupon>>,
-    #[account(address = anchor_spl::token::ID)]
+    #[account(
+        mut,
+        constraint = &bond_vote.token_state_address == token_state.to_account_info().key
+    )]
+    pub bond_vote: Option<Account<'info, BondVote>>,
     pub token_program: Program<'info, Token>,
     #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }
 
-pub fn handle(ctx: Context<Bond>, amount: u64, period_index: u8) -> Result<()> {
+pub fn handle(ctx: Context<Bond>, id: String, amount: u64, period_index: u8) -> Result<()> {
     //todo, min re out, could end up buying at next epoch accidentaly? specify epoch, epochs must == as a safety check
     //todo min amount should also cover runway fee too
-    //TODO what if  amount to next halving is less than minimum amount? it is impossible to move forward?
+    //TODO what if  amount to next halving is less than minimum amount? it is impossible to move forward? add min bond amount
+    //todo check if pool is launched
+    let id_bytes = id.as_bytes();
+    if id_bytes.len() > 10 {
+        return Err(error!(CustomErrorCode::InvalidIdLength));
+    }
+    let mut id_data = [b' '; 10];
+    id_data[..id_bytes.len()].copy_from_slice(id_bytes);
 
     if amount == 0 {
         return Err(error!(CustomErrorCode::ZeroError));
@@ -179,44 +183,104 @@ pub fn handle(ctx: Context<Bond>, amount: u64, period_index: u8) -> Result<()> {
         token_state.mps,
         new_total_maximum_emissions
     );
-    //calculate new floor price
-    let new_floor_price = floor_price(token_state.quote_bonded, token_state.mps, 9)?;
-    //calculate new reserve for this bond
-    let mut new_reserve = reserve(new_floor_price, token_state.total_emissions, 9)?;
-    //calculate new surplus for this bond
-    let mut new_surplus = surplus(token_state.quote_bonded, new_reserve)?;
-    if new_floor_price == 0 {
-        //if the price is so low it registers as zero
-        //all funds go to reserve
-        new_reserve = token_state
-            .total_reserve
-            .checked_add(amount_post_fee)
-            .or_arith_error()?;
-        new_surplus = token_state.total_surplus_reserve;
-    }
-    msg!(":={},{}, {}", new_floor_price, new_reserve, new_surplus);
+    // //calculate new floor price
+    // let new_floor_price = floor_price(token_state.quote_bonded, token_state.mps, 9)?;
+    // //calculate new reserve for this bond
+    // let mut new_reserve = reserve(new_floor_price, token_state.total_emissions, 9)?;
+    // //calculate new surplus for this bond
+    // let mut new_surplus = surplus(token_state.quote_bonded, new_reserve)?;
+    // if new_floor_price == 0 {
+    //     //if the price is so low it registers as zero
+    //     //all funds go to reserve
+    //     new_reserve = token_state
+    //         .total_reserve
+    //         .checked_add(amount_post_fee)
+    //         .or_arith_error()?;
+    //     new_surplus = token_state.total_surplus_reserve;
+    // }
+    // msg!(":={},{}, {}", new_floor_price, new_reserve, new_surplus);
     //calculate difference
     //let floor_delta = new_floor_price.checked_sub(token_state.floor_price).or_arith_error()?;
-    let reserve_delta = new_reserve
-        .checked_sub(token_state.total_reserve)
-        .or_arith_error()?;
-    let surplus_delta = new_surplus
-        .checked_sub(token_state.total_surplus_reserve)
-        .or_arith_error()?;
+    // let reserve_delta = new_reserve
+    //     .checked_sub(token_state.total_reserve)
+    //     .or_arith_error()?;
+    // let surplus_delta = new_surplus
+    //     .checked_sub(token_state.total_surplus_reserve)
+    //     .or_arith_error()?;
 
-    //reserve + suprlus == amount bonded
-    let total_delta = reserve_delta.checked_add(surplus_delta).or_arith_error()?;
-    if total_delta != amount_post_fee {
-        return Err(error!(CustomErrorCode::ReserveDeltaMismatchError));
-    }
+    // //reserve + suprlus == amount bonded
+    // let total_delta = reserve_delta.checked_add(surplus_delta).or_arith_error()?;
+    // if total_delta != amount_post_fee {
+    //     return Err(error!(CustomErrorCode::ReserveDeltaMismatchError));
+    // }
 
-    //set new reserve values
-    token_state.floor_price = new_floor_price;
-    token_state.total_reserve = new_reserve;
-    token_state.total_surplus_reserve = new_surplus;
+    // //set new reserve values
+    // token_state.floor_price = new_floor_price;
+    // token_state.total_reserve = new_reserve;
+    // token_state.total_surplus_reserve = new_surplus;
 
+    // // send quote tokens to reserve, surplus, runway
+    // if runway_fee_amount > 0 {
+    //     //runway transfer
+    //     transfers::transfer(
+    //         ctx.accounts.user.to_account_info(),
+    //         ctx.accounts.user_quote_token.to_account_info(),
+    //         ctx.accounts.quote_runway_token_address.to_account_info(),
+    //         ctx.accounts.token_program.to_account_info(),
+    //         runway_fee_amount,
+    //     )?;
+    // }
+    
+    
+    // if reserve_delta > 0 {
+    //     //reserve transfer
+    //     transfers::transfer(
+    //         ctx.accounts.user.to_account_info(),
+    //         ctx.accounts.user_quote_token.to_account_info(),
+    //         ctx.accounts.quote_reserve_token_address.to_account_info(),
+    //         ctx.accounts.token_program.to_account_info(),
+    //         reserve_delta,
+    //     )?;
+    // }
+
+    // if surplus_delta > 0 {
+    //     //surplus transfer
+    //     transfers::transfer(
+    //         ctx.accounts.user.to_account_info(),
+    //         ctx.accounts.user_quote_token.to_account_info(),
+    //         ctx.accounts.quote_surplus_token_address.to_account_info(),
+    //         ctx.accounts.token_program.to_account_info(),
+    //         surplus_delta,
+    //     )?;
+    // }
+    
+    //base pool allocation
+    //growth pool
+    //add growth pool fee to base pool
+    //apply runway fee
+    msg!(
+        "amtpostfee:={},{}, {}",
+        amount_post_fee,
+        multiplier,
+        token_state.bps
+    );
+    let growth_pool_amount = fee(
+        amount_post_fee,
+        multiplier,
+        token_state.bps.into(),
+    )?;
+    let base_pool_amount = amount_post_fee.checked_sub(growth_pool_amount).or_arith_error()?;
+    msg!(
+        "bb:={},{}",
+        growth_pool_amount,
+        base_pool_amount
+    );
+    //token_state.floor_price = new_floor_price;
+    token_state.total_reserve = token_state.total_reserve.checked_add(base_pool_amount).or_arith_error()?;
+    token_state.total_surplus_reserve = token_state.total_surplus_reserve.checked_add(growth_pool_amount).or_arith_error()?;
     // send quote tokens to reserve, surplus, runway
     if runway_fee_amount > 0 {
+        //runway transfer
         transfers::transfer(
             ctx.accounts.user.to_account_info(),
             ctx.accounts.user_quote_token.to_account_info(),
@@ -225,38 +289,67 @@ pub fn handle(ctx: Context<Bond>, amount: u64, period_index: u8) -> Result<()> {
             runway_fee_amount,
         )?;
     }
-    //runway transfer
     
-    if reserve_delta > 0 {
+    
+    if base_pool_amount > 0 {
         //reserve transfer
         transfers::transfer(
             ctx.accounts.user.to_account_info(),
             ctx.accounts.user_quote_token.to_account_info(),
             ctx.accounts.quote_reserve_token_address.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            reserve_delta,
+            base_pool_amount,
         )?;
     }
 
-    if surplus_delta > 0 {
+    if growth_pool_amount > 0 {
         //surplus transfer
         transfers::transfer(
             ctx.accounts.user.to_account_info(),
             ctx.accounts.user_quote_token.to_account_info(),
             ctx.accounts.quote_surplus_token_address.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            surplus_delta,
+            growth_pool_amount,
         )?;
     }
 
-    // create bonding coupon
-
-    // if epoch transition, next epoch
-
-    // else advance current epoch
-
+    //create bonding coupon
+    token_state.bond_coupon_count = token_state.bond_coupon_count.checked_add(1).or_arith_error()?;
+    let coupon = &mut ctx.accounts.coupon;
+    coupon.is_redeemed = false;
+    coupon.coupon_count = token_state.bond_coupon_count;
+    coupon.period_index = period_index;
+    coupon.token_state_address = token_state.key();
+    coupon.redeemer_address = ctx.accounts.user.key();
+    let clock = Clock::get()?;
+    coupon.redemption_date = clock.unix_timestamp.checked_add(period_length).unwrap();
+    coupon.tokens_to_redeem = reward;
+    coupon.coupon_bump = *ctx.bumps.get("coupon").unwrap();
+    coupon.id = id_data;
+    //if epoch transition, next epoch
+    if epoch_transition {
+        //next epoch, iterate current epoch to next epoch
+        token_state.epoch_count = token_state.epoch_count.checked_add(1).unwrap();
+        //total emitted for new epoch
+        token_state.total_epoch_emissions = epoch_emissions(token_state.epoch_count, token_state.genesis_supply)?;
+        token_state.current_epoch_emissions = 0;
+        //next halving
+        token_state.next_halving = total_emissions_at_epoch(token_state.genesis_supply, token_state.epoch_count)?;
+        //update emissions
+        token_state.emission_rate = epoch_emission_rate(token_state.epoch_count, token_state.genesis_emission_rate)?;
+    }
+    //else advance current epoch
+    else {
+        token_state.current_epoch_emissions = token_state.current_epoch_emissions.checked_add(reward).or_arith_error()?;
+    }
     //apply vote if exists
-
-    if epoch_transition {}
+    //check for optional account
+    //if account exists and voting is enabled, add points
+    if token_state.voting_enabled_date > clock.unix_timestamp {
+        let vote_account = &mut ctx.accounts.bond_vote;
+        if let Some(vote) = vote_account {
+            vote.total_votes = vote.total_votes.checked_add(amount).or_arith_error()?;
+        }
+    }
     Ok(())
 }

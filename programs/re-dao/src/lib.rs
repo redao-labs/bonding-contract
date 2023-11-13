@@ -49,10 +49,19 @@ pub mod re_dao {
 
     pub fn bond(
         ctx: Context<Bond>,
+        id: String,
         amount: u64,
         period_index: u8,
+        
     ) -> Result<()> {
-        instructions::bond::handle(ctx, amount, period_index)
+        instructions::bond::handle(ctx, id, amount, period_index)
+    }
+
+    pub fn redeem(
+        ctx: Context<RedeemCoupon>,
+        id: String
+    ) -> Result<()> {
+        instructions::redeem_coupon::handle(ctx, id)
     }
 }
 
