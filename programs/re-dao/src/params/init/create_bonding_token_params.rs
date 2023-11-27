@@ -8,6 +8,7 @@ pub struct CreateBondingTokenParams {
     pub initial_reserve: u64,
     pub period_lengths: [i64; 10],
     pub period_multipliers: [u32; 10],
+    pub treasury_split: [u32; 10],
     pub period_enabled: [bool; 10],
     //controls
     pub updates_allowed: bool,

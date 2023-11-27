@@ -106,10 +106,13 @@ fn validate(params: CreateBondingTokenParams) -> Result<()> {
         return Err(error!(CustomErrorCode::PeriodLengthError));
     }
     if params.period_multipliers.len() != 10 {
-        return Err(error!(CustomErrorCode::PeriodLengthError));
+        return Err(error!(CustomErrorCode::PeriodMultiplierError));
+    }
+    if params.treasury_split.len() != 10 {
+        return Err(error!(CustomErrorCode::PeriodTreasurySplitError));
     }
     if params.period_enabled.len() != 10 {
-        return Err(error!(CustomErrorCode::PeriodLengthError));
+        return Err(error!(CustomErrorCode::PeriodEnabledError));
     }
     if (params.initial_reserve) > params.next_halving {
         return Err(error!(CustomErrorCode::InitialReserveTooLargeError)); //todo, just auto go into next epoch?
@@ -170,6 +173,7 @@ pub fn handle(ctx: Context<CreateBondingToken>, id: String, params: CreateBondin
     token_state.launch_date = params.launch_date;
     token_state.period_enabled = params.period_enabled;
     token_state.period_multipliers = params.period_multipliers;
+    token_state.treasury_split = params.treasury_split;
     token_state.period_lengths = params.period_lengths;
     token_state.updates_allowed = params.updates_allowed;
     token_state.voting_enabled_date = params.voting_enabled_date;
@@ -186,8 +190,9 @@ pub fn handle(ctx: Context<CreateBondingToken>, id: String, params: CreateBondin
     token_state.total_reserve = 0;
     token_state.total_surplus_reserve = 0;
     token_state.total_runway_reserve = 0;
-    token_state.bps = 100000;
-    if params.runway_fee > token_state.bps {
+    token_state.fee_bps = 100000; //hardcoded for simplicity
+    token_state.reward_bps = 10000; //hardcoded for simplicity
+    if params.runway_fee > token_state.fee_bps {
         return Err(error!(CustomErrorCode::RunwayFeeError));
     }
     token_state.runway_fee = params.runway_fee;

@@ -64,7 +64,7 @@ describe("re-dao", () => {
       quoteMint,
       quoteMintTokenAddr,
       (provider.wallet as NodeWallet).payer,
-      100_000 * LAMPORTS_PER_SOL
+      1_000_000 * LAMPORTS_PER_SOL
     );
 
     //Base mints
@@ -88,7 +88,7 @@ describe("re-dao", () => {
       baseMint,
       baseMintTokenAddr,
       (provider.wallet as NodeWallet).payer,
-      16_000_000_00 * LAMPORTS_PER_SOL
+      2_000_000_000 * LAMPORTS_PER_SOL
     );
   });
   it("Create base tracker", async () => {
@@ -126,11 +126,12 @@ describe("re-dao", () => {
       [tokenTrackerBaseAddress.toBuffer(), Buffer.from(index.toString())],
       program.programId
     );
+    //bonding address
     let [tokenStateAddress, tokenStateBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [tokenTrackerBaseAddress.toBuffer(), Buffer.from(ID)],
       program.programId
     );
-    
+
     let [baseTokenAddress, baseTokenBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [tokenStateAddress.toBuffer(), Buffer.from("base_token")],
       program.programId
@@ -143,9 +144,9 @@ describe("re-dao", () => {
     } catch (error) {
       console.log("creating dao reserve token account")
       let daoTokenAccountRes = await createAssociatedTokenAccount(
-        provider.connection, 
-        (provider.wallet as NodeWallet).payer, 
-        quoteMint, 
+        provider.connection,
+        (provider.wallet as NodeWallet).payer,
+        quoteMint,
         daoReserveWallet.publicKey);
       await new Promise(r => setTimeout(r, 3000));
       console.log("Dao reserve wallet account created -", daoTokenAccountRes.toBase58())
@@ -159,9 +160,9 @@ describe("re-dao", () => {
     } catch (error) {
       console.log("creating dao surplus token account")
       let daoTokenAccountRes = await createAssociatedTokenAccount(
-        provider.connection, 
-        (provider.wallet as NodeWallet).payer, 
-        quoteMint, 
+        provider.connection,
+        (provider.wallet as NodeWallet).payer,
+        quoteMint,
         daoSurplusWallet.publicKey);
       await new Promise(r => setTimeout(r, 3000));
       console.log("Dao surplus wallet account created -", daoTokenAccountRes.toBase58())
@@ -175,9 +176,9 @@ describe("re-dao", () => {
     } catch (error) {
       console.log("creating dao runway token account")
       let daoTokenAccountRes = await createAssociatedTokenAccount(
-        provider.connection, 
-        (provider.wallet as NodeWallet).payer, 
-        quoteMint, 
+        provider.connection,
+        (provider.wallet as NodeWallet).payer,
+        quoteMint,
         daoRunwayWallet.publicKey);
       await new Promise(r => setTimeout(r, 3000));
       console.log("Dao reserve runway account created -", daoTokenAccountRes.toBase58())
@@ -188,36 +189,47 @@ describe("re-dao", () => {
     //launch date
     const launchDate = Date.parse("24 Oct 2021 15:00:00 GMT") / 1000;
     console.log("bing")
-    const nextHalving = new anchor.BN(16_000_000_00).mul(new anchor.BN(LAMPORTS_PER_SOL))
+    const nextHalving = new anchor.BN(1_000_000_000).mul(new anchor.BN(LAMPORTS_PER_SOL))
     console.log("bong", nextHalving.toString())
 
-    const emissionRate = new anchor.BN(1000).mul(new anchor.BN(LAMPORTS_PER_SOL))
+    const emissionRate = new anchor.BN(1_000).mul(new anchor.BN(LAMPORTS_PER_SOL))
     const bondingCost = 0.01 * LAMPORTS_PER_SOL
-    const initialReserve = new anchor.BN(320000000).mul(new anchor.BN(LAMPORTS_PER_SOL))
+    const initialReserve = new anchor.BN(200_000_000).mul(new anchor.BN(LAMPORTS_PER_SOL))
     const runwayFee = (10 / 100) * 100000;
     const periodEnabled = [true, true, true, false, false, false, false, false, false, false]
-    const periodMultipliers : number[] = [
-      10000, 
-      10330, 
-      10880, 
-      0, 
-      0, 
-      0, 
-      0, 
-      0, 
-      0, 
+    const periodMultipliers: number[] = [
+      10000,
+      10330,
+      10880,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0]
+    const periodTreasurySplit: number[] = [
+      (1 / 100) * 100000,
+      (3.3 / 100) * 100000,
+      (8.8 / 100) * 100000,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0]
     //TODO - shorten bonding dates for testing, 1sec, 1min, 2min?
-    const periodLengths : anchor.BN[] = [
-      new anchor.BN(1), 
-      new anchor.BN(1*7), 
-      new anchor.BN(1*14), 
-      new anchor.BN(0), 
-      new anchor.BN(0), 
-      new anchor.BN(0), 
-      new anchor.BN(0), 
-      new anchor.BN(0), 
-      new anchor.BN(0), 
+    const periodLengths: anchor.BN[] = [
+      new anchor.BN(1),
+      new anchor.BN(1 * 7),
+      new anchor.BN(1 * 14),
+      new anchor.BN(0),
+      new anchor.BN(0),
+      new anchor.BN(0),
+      new anchor.BN(0),
+      new anchor.BN(0),
+      new anchor.BN(0),
       new anchor.BN(0)]
     const updatesAllowed = true
     const votingEnabled = Date.parse("25 Oct 2024 15:00:00 GMT") / 1000
@@ -229,27 +241,28 @@ describe("re-dao", () => {
       initialReserve: initialReserve,
       periodLengths: periodLengths,
       periodMultipliers: periodMultipliers,
+      treasurySplit: periodTreasurySplit,
       periodEnabled: periodEnabled,
       updatesAllowed: updatesAllowed,
       votingEnabledDate: new anchor.BN(votingEnabled),
       launchDate: new anchor.BN(launchDate),
       runwayFee: runwayFee
     })
-    .accounts({
-      creator: provider.wallet.publicKey,
-      tokenTrackerBase: tokenTrackerBaseAddress,
-      tokenTracker: tokenTrackerAddress,
-      tokenState: tokenStateAddress,
-      baseMint: baseMint,
-      baseTokenVault: baseTokenAddress,
-      quoteMint: quoteMint,
-      quoteReserveTokenAddress: daoReserveTokenAddress,
-      quoteSurplusTokenAddress: daoSurplusTokenAddress,
-      quoteRunwayTokenAddress: daoRunwayTokenAddress,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: anchor.web3.SystemProgram.programId,
-      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-    }).rpc()
+      .accounts({
+        creator: provider.wallet.publicKey,
+        tokenTrackerBase: tokenTrackerBaseAddress,
+        tokenTracker: tokenTrackerAddress,
+        tokenState: tokenStateAddress,
+        baseMint: baseMint,
+        baseTokenVault: baseTokenAddress,
+        quoteMint: quoteMint,
+        quoteReserveTokenAddress: daoReserveTokenAddress,
+        quoteSurplusTokenAddress: daoSurplusTokenAddress,
+        quoteRunwayTokenAddress: daoRunwayTokenAddress,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      }).rpc()
     const tokenState = await program.account.tokenState.fetch(tokenStateAddress)
     console.log("Your transaction signature", tx);
     console.log("Token state index:", tokenState.stateIndex.toNumber())
@@ -277,7 +290,7 @@ describe("re-dao", () => {
     console.log("Token state period enabled:", tokenState.periodEnabled)
     const expectedPeriodsArray = periodEnabled//[true, true, true, false, false, false, false, false, false, false];
     assert.ok(
-      Array.isArray(tokenState.periodEnabled) && 
+      Array.isArray(tokenState.periodEnabled) &&
       tokenState.periodEnabled.length === expectedPeriodsArray.length &&
       tokenState.periodEnabled.every((value, index) => value === expectedPeriodsArray[index]),
       "Token state period enabled array does not match expected values"
@@ -285,15 +298,23 @@ describe("re-dao", () => {
     console.log("Token state period multipliers:", tokenState.periodMultipliers)
     const expectedPeriodMultipliersArray = periodMultipliers//[10000, 10330, 10880, 0, 0, 0, 0, 0, 0, 0];
     assert.ok(
-      Array.isArray(tokenState.periodMultipliers) && 
+      Array.isArray(tokenState.periodMultipliers) &&
       tokenState.periodMultipliers.length === expectedPeriodMultipliersArray.length &&
       tokenState.periodMultipliers.every((value, index) => value === expectedPeriodMultipliersArray[index]),
       "Token state period multipliers array does not match expected values"
     );
+    console.log("Token state treasury splits:", tokenState.periodMultipliers)
+    const expectedSplitArray = periodTreasurySplit//[10000, 10330, 10880, 0, 0, 0, 0, 0, 0, 0];
+    assert.ok(
+      Array.isArray(tokenState.treasurySplit) &&
+      tokenState.treasurySplit.length === expectedSplitArray.length &&
+      tokenState.treasurySplit.every((value, index) => value === expectedSplitArray[index]),
+      "Token state period treasury split array does not match expected values"
+    );
     console.log("Token state period lengths:", tokenState.periodLengths.map((bn) => bn.toNumber()));
     const expectedPeriodLengthsArray = periodLengths//[86400, 604800, 1209600, 0, 0, 0, 0, 0, 0, 0];
     assert.ok(
-      Array.isArray(tokenState.periodLengths) && 
+      Array.isArray(tokenState.periodLengths) &&
       tokenState.periodLengths.length === expectedPeriodLengthsArray.length &&
       tokenState.periodMultipliers.every((value, index) => value === expectedPeriodMultipliersArray[index]),
       "Token state period lengths array does not match expected values"
@@ -393,14 +414,14 @@ describe("re-dao", () => {
       [tokenTrackerBaseAddress.toBuffer(), Buffer.from(ID)],
       program.programId
     );
-    
+
     let [baseTokenAddress, baseTokenBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [tokenStateAddress.toBuffer(), Buffer.from("base_token")],
       program.programId
     );
     console.log("PRE")
 
-    let amount = new anchor.BN(1280000000).mul(new anchor.BN(LAMPORTS_PER_SOL))
+    let amount = new anchor.BN(1_800_000_000).mul(new anchor.BN(LAMPORTS_PER_SOL))
     console.log("PRO", amount.toString())
 
     let tx = await program.methods.bondingVaultTopup(amount).accounts({
@@ -420,7 +441,7 @@ describe("re-dao", () => {
     console.log("Token state total topup", tokenState.totalTopup.toString())
     assert.ok(tokenState.totalTopup.toString() == amount.toString())
   });
-  it("Bond period 0", async () => { 
+  it("Bond period 0", async () => {
     let [tokenTrackerBaseAddress, tokenTrackerBaseBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from(TRACKER_ID)],
       program.programId
@@ -464,26 +485,29 @@ describe("re-dao", () => {
       bondVote: bondVoteAddress1,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: anchor.web3.SystemProgram.programId,
-    }).rpc({skipPreflight: true})
+    }).rpc({ skipPreflight: true })
     console.log("Your transaction signature", tx);
     await new Promise(r => setTimeout(r, 1000));
 
     const tokenState = await program.account.tokenState.fetch(tokenStateAddress)
     //console.log(tokenState) 
     console.log("Total emissions: ", tokenState.totalEmissions.toString())
-    //assert.ok(tokenState.totalEmissions.toString() == "320001000000000000")
+    assert.ok(tokenState.totalEmissions.toString() == "200001000000000000")
     console.log("Mps: ", tokenState.mps.toString())
-    //assert.ok(tokenState.mps.toString() == "320001088000000000")
+    assert.ok(tokenState.mps.toString() == "200001088000000000")
     console.log("Quote bonded: ", tokenState.quoteBonded.toNumber())
-    //assert.ok(tokenState.quoteBonded.toNumber() == 9000000)
+    assert.ok(tokenState.quoteBonded.toNumber() == 9000000)
+    //quote bonded - (quote bonded * treasury split) -> 9000000 - (9000000 * 0.01) = 8910000
     console.log("Reserve: ", tokenState.totalReserve.toNumber())
-    //assert.ok(tokenState.totalReserve.toNumber() == 9000000)
+    assert.ok(tokenState.totalReserve.toNumber() == 8910000)
+    //quote bonded * treasury split -> (9000000 * 0.01) =  90000
     console.log("Surplus: ", tokenState.totalSurplusReserve.toNumber())
-    //assert.ok(tokenState.totalSurplusReserve.toNumber() == 0)
+    assert.ok(tokenState.totalSurplusReserve.toNumber() == 90000)
     console.log("Runway Reserve: ", tokenState.totalRunwayReserve.toNumber())
-    //assert.ok(tokenState.totalRunwayReserve.toNumber() == 1000000)
+    assert.ok(tokenState.totalRunwayReserve.toNumber() == 1000000)
+    //todo floor is not being used here, update
     console.log("Floor price", tokenState.floorPrice.toNumber())
-    //assert.ok(tokenState.floorPrice.toNumber() == 0)
+    assert.ok(tokenState.floorPrice.toNumber() == 0)
     await new Promise(r => setTimeout(r, 1000));
     let reserve = await getAccount(
       provider.connection,
@@ -499,34 +523,34 @@ describe("re-dao", () => {
     )
     console.log("Dao reserve address", daoReserveTokenAddress.toBase58())
     console.log("Dao reserve amount", reserve.amount.toString())
-    //assert.ok(reserve.amount.toString() == (9000000).toString())
+    assert.ok(reserve.amount.toString() == (8910000).toString())
     console.log("Dao surplus token address", daoSurplusTokenAddress.toBase58())
     console.log("Dao surplus amount", surplus.amount.toString())
-    //assert.ok(surplus.amount.toString() == (0).toString())
+    assert.ok(surplus.amount.toString() == (90000).toString())
     console.log("Dao quote runway surplus", daoRunwayTokenAddress.toBase58())
     console.log("Dao runway amount", runway.amount.toString())
-    //assert.ok(runway.amount.toString() == (1000000).toString())
+    assert.ok(runway.amount.toString() == (1000000).toString())
 
     //vote
     const voteAccount1 = await program.account.bondVote.fetch(bondVoteAddress1)
-    //assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
-    //assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
+    assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
     console.log("Vote account 1 votes", voteAccount1.totalVotes.toNumber())
-    //assert.ok(voteAccount1.totalVotes.toNumber() == bondingAmount, "Vote account 1 total votes mismatch.")
+    assert.ok(voteAccount1.totalVotes.toNumber() == bondingAmount, "Vote account 1 total votes mismatch.")
 
     const voteAccount2 = await program.account.bondVote.fetch(bondVoteAddress2)
-    //assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
-    //assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
+    assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
     console.log("Vote account 2 votes", voteAccount2.totalVotes.toNumber())
-    //assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
+    assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
 
     const voteAccount3 = await program.account.bondVote.fetch(bondVoteAddress3)
-    //assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
-    //assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
+    assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
     console.log("Vote account 3 votes", voteAccount3.totalVotes.toNumber())
-    //assert.ok(voteAccount3.totalVotes.toNumber() == 0, "Vote account 3 total votes mismatch.")
+    assert.ok(voteAccount3.totalVotes.toNumber() == 0, "Vote account 3 total votes mismatch.")
   });
-  it("Bond period 1", async () => { 
+  it("Bond period 1", async () => {
     let [tokenTrackerBaseAddress, tokenTrackerBaseBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from(TRACKER_ID)],
       program.programId
@@ -575,26 +599,28 @@ describe("re-dao", () => {
       bondVote: bondVoteAddress1,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: anchor.web3.SystemProgram.programId,
-    }).rpc({skipPreflight: true})
+    }).rpc({ skipPreflight: true })
     console.log("Your transaction signature", tx);
     await new Promise(r => setTimeout(r, 1000));
 
     const tokenState = await program.account.tokenState.fetch(tokenStateAddress)
     //console.log(tokenState) 
     console.log("Total emissions: ", tokenState.totalEmissions.toString())
-    //assert.ok(tokenState.totalEmissions.toString() == "320002033000000000")
+    assert.ok(tokenState.totalEmissions.toString() == "200002033000000000")
     console.log("Mps: ", tokenState.mps.toString())
-    //assert.ok(tokenState.mps.toString() == "320002176000000000")
+    assert.ok(tokenState.mps.toString() == "200002176000000000")
     console.log("Quote bonded: ", tokenState.quoteBonded.toNumber())
-    //assert.ok(tokenState.quoteBonded.toNumber() == 18000000)
+    assert.ok(tokenState.quoteBonded.toNumber() == 18000000)
+    //8910000 + quote bonded - (quote bonded * treasury split) -> 9000000 - (9000000 * 0.033) = 8910000 + 8703000 = 17613000
     console.log("Reserve: ", tokenState.totalReserve.toNumber())
-    //assert.ok(tokenState.totalReserve.toNumber() == 18000000)
+    assert.ok(tokenState.totalReserve.toNumber() == 17613000)
+    //90000 + quote bonded * treasury split -> (9000000 * 0.033) = 90000 + 297000 = 387000
     console.log("Surplus: ", tokenState.totalSurplusReserve.toNumber())
-    //assert.ok(tokenState.totalSurplusReserve.toNumber() == 0)
+    assert.ok(tokenState.totalSurplusReserve.toNumber() == 387000)
     console.log("Runway Reserve: ", tokenState.totalRunwayReserve.toNumber())
-    //assert.ok(tokenState.totalRunwayReserve.toNumber() == 2000000)
+    assert.ok(tokenState.totalRunwayReserve.toNumber() == 2000000)
     console.log("Floor price", tokenState.floorPrice.toNumber())
-    //assert.ok(tokenState.floorPrice.toNumber() == 0)
+    assert.ok(tokenState.floorPrice.toNumber() == 0)
     await new Promise(r => setTimeout(r, 1000));
     let reserve = await getAccount(
       provider.connection,
@@ -610,32 +636,32 @@ describe("re-dao", () => {
     )
     console.log("Dao reserve address", daoReserveTokenAddress.toBase58())
     console.log("Dao reserve amount", reserve.amount.toString())
-    //assert.ok(reserve.amount.toString() == (18000000).toString())
+    assert.ok(reserve.amount.toString() == (17613000).toString())
     console.log("Dao surplus token address", daoSurplusTokenAddress.toBase58())
     console.log("Dao surplus amount", surplus.amount.toString())
-    //assert.ok(surplus.amount.toString() == (0).toString())
+    assert.ok(surplus.amount.toString() == (387000).toString())
     console.log("Dao quote runway surplus", daoRunwayTokenAddress.toBase58())
     console.log("Dao runway amount", runway.amount.toString())
-    //assert.ok(runway.amount.toString() == (2000000).toString())
+    assert.ok(runway.amount.toString() == (2000000).toString())
 
     //vote
     const voteAccount1 = await program.account.bondVote.fetch(bondVoteAddress1)
-    //assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
-    //assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
+    assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
     console.log("Vote account 1 votes", voteAccount1.totalVotes.toNumber())
-    //assert.ok(voteAccount1.totalVotes.toNumber() == bondingAmount * 2, "Vote account 1 total votes mismatch.")
+    assert.ok(voteAccount1.totalVotes.toNumber() == bondingAmount * 2, "Vote account 1 total votes mismatch.")
 
     const voteAccount2 = await program.account.bondVote.fetch(bondVoteAddress2)
-    //assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
-    //assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
+    assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
     console.log("Vote account 2 votes", voteAccount2.totalVotes.toNumber())
-    //assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
+    assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
 
     const voteAccount3 = await program.account.bondVote.fetch(bondVoteAddress3)
-    //assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
-    //assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
+    assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
     console.log("Vote account 3 votes", voteAccount3.totalVotes.toNumber())
-    //assert.ok(voteAccount3.totalVotes.toNumber() == 0, "Vote account 3 total votes mismatch.")
+    assert.ok(voteAccount3.totalVotes.toNumber() == 0, "Vote account 3 total votes mismatch.")
   });
   it("Bond period 2", async () => { 
     let [tokenTrackerBaseAddress, tokenTrackerBaseBump] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -652,7 +678,6 @@ describe("re-dao", () => {
     );
     const bondingAmount = 0.01 * LAMPORTS_PER_SOL
     const periodIndex = 2;
-    console.log("zoink")
     const couponId = crypto.randomBytes(20).toString('hex').slice(0, 10);
     console.log(couponId)
     let [couponAddress, couponBump] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -678,7 +703,7 @@ describe("re-dao", () => {
       user: provider.wallet.publicKey,
       tokenTrackerBase: tokenTrackerBaseAddress,
       tokenState: tokenStateAddress,
-      
+
       userQuoteToken: quoteMintTokenAddr,
       quoteRunwayTokenAddress: daoRunwayTokenAddress,
       quoteReserveTokenAddress: daoReserveTokenAddress,
@@ -695,19 +720,21 @@ describe("re-dao", () => {
     //console.log(tokenState) 
     console.log("Epoch: ", tokenState.epochCount.toString())
     console.log("Total emissions: ", tokenState.totalEmissions.toString())
-    //assert.ok(tokenState.totalEmissions.toString() == "320003121000000000")
+    assert.ok(tokenState.totalEmissions.toString() == "200003121000000000")
     console.log("Mps: ", tokenState.mps.toString())
-    //assert.ok(tokenState.mps.toString() == "320003264000000000")
+    assert.ok(tokenState.mps.toString() == "200003264000000000")
     console.log("Quote bonded: ", tokenState.quoteBonded.toNumber())
-    //assert.ok(tokenState.quoteBonded.toNumber() == 27000000)
+    assert.ok(tokenState.quoteBonded.toNumber() == 27000000)
+    //17613000 + quote bonded - (quote bonded * treasury split) -> 9000000 - (9000000 * 0.088) = 17613000 + 8208000 = 25821000
     console.log("Reserve: ", tokenState.totalReserve.toNumber())
-    //assert.ok(tokenState.totalReserve.toNumber() == 27000000)
+    assert.ok(tokenState.totalReserve.toNumber() == 25821000)
+    // 387000 + quote bonded * treasury split -> (9000000 * 0.088) =  387000 + 792000 = 1179000
     console.log("Surplus: ", tokenState.totalSurplusReserve.toNumber())
-    //assert.ok(tokenState.totalSurplusReserve.toNumber() == 0)
+    assert.ok(tokenState.totalSurplusReserve.toNumber() == 1179000)
     console.log("Runway Reserve: ", tokenState.totalRunwayReserve.toNumber())
-    //assert.ok(tokenState.totalRunwayReserve.toNumber() == 3000000)
+    assert.ok(tokenState.totalRunwayReserve.toNumber() == 3000000)
     console.log("Floor price", tokenState.floorPrice.toNumber())
-    //assert.ok(tokenState.floorPrice.toNumber() == 0)
+    assert.ok(tokenState.floorPrice.toNumber() == 0)
     await new Promise(r => setTimeout(r, 1000));
     let reserve = await getAccount(
       provider.connection,
@@ -723,32 +750,32 @@ describe("re-dao", () => {
     )
     console.log("Dao reserve address", daoReserveTokenAddress.toBase58())
     console.log("Dao reserve amount", reserve.amount.toString())
-    //assert.ok(reserve.amount.toString() == (27000000).toString())
+    assert.ok(reserve.amount.toString() == (25821000).toString())
     console.log("Dao surplus token address", daoSurplusTokenAddress.toBase58())
     console.log("Dao surplus amount", surplus.amount.toString())
-    //assert.ok(surplus.amount.toString() == (0).toString())
+    assert.ok(surplus.amount.toString() == (1179000).toString())
     console.log("Dao quote runway surplus", daoRunwayTokenAddress.toBase58())
     console.log("Dao runway amount", runway.amount.toString())
-    //assert.ok(runway.amount.toString() == (3000000).toString())
+    assert.ok(runway.amount.toString() == (3000000).toString())
 
     //vote
     const voteAccount1 = await program.account.bondVote.fetch(bondVoteAddress1)
-    //assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
-    //assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
+    assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
     console.log("Vote account 1 votes", voteAccount1.totalVotes.toNumber())
-    //assert.ok(voteAccount1.totalVotes.toNumber() == 20000000, "Vote account 1 total votes mismatch.")
+    assert.ok(voteAccount1.totalVotes.toNumber() == 20000000, "Vote account 1 total votes mismatch.")
 
     const voteAccount2 = await program.account.bondVote.fetch(bondVoteAddress2)
-    //assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
-    //assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
+    assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
     console.log("Vote account 2 votes", voteAccount2.totalVotes.toNumber())
-    //assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
+    assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
 
     const voteAccount3 = await program.account.bondVote.fetch(bondVoteAddress3)
-    //assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
-    //assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
+    assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
+    assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
     console.log("Vote account 3 votes", voteAccount3.totalVotes.toNumber())
-    //assert.ok(voteAccount3.totalVotes.toNumber() == 0, "Vote account 3 total votes mismatch.")
+    assert.ok(voteAccount3.totalVotes.toNumber() == 0, "Vote account 3 total votes mismatch.")
   });
   it("Redeem coupons", async () => {
     //sleep
@@ -777,7 +804,7 @@ describe("re-dao", () => {
         }
       }
     ])
-    
+
     //console.log(coupons)
     for (let index = 0; index < coupons.length; index++) {
       const coupon = coupons[index];
@@ -868,7 +895,7 @@ describe("re-dao", () => {
           }).rpc({skipPreflight: true})
           console.log("Your transaction signature", tx);
           await new Promise(r => setTimeout(r, 1000));
-      
+
           const tokenState = await program.account.tokenState.fetch(tokenStateAddress)
           //console.log(tokenState) 
           console.log("Total emissions: ", tokenState.totalEmissions.toString())
@@ -907,20 +934,20 @@ describe("re-dao", () => {
           console.log("Dao quote runway surplus", daoRunwayTokenAddress.toBase58())
           console.log("Dao runway amount", runway.amount.toString())
           //assert.ok(runway.amount.toString() == (1000000).toString())
-      
+
           //vote
           const voteAccount1 = await program.account.bondVote.fetch(bondVoteAddress1)
           //assert.ok(String.fromCharCode(...voteAccount1.id).trim() === voteAccount1Id, "Vote account 1 id mismatch");
           //assert.ok(voteAccount1.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 1 token state address mismatch.")
           console.log("Vote account 1 votes", voteAccount1.totalVotes.toNumber())
           //assert.ok(voteAccount1.totalVotes.toNumber() == bondingAmount, "Vote account 1 total votes mismatch.")
-      
+
           const voteAccount2 = await program.account.bondVote.fetch(bondVoteAddress2)
           //assert.ok(String.fromCharCode(...voteAccount2.id).trim() === voteAccount2Id, "Vote account 2 id mismatch");
           //assert.ok(voteAccount2.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 2 token state address mismatch.")
           console.log("Vote account 2 votes", voteAccount2.totalVotes.toNumber())
           //assert.ok(voteAccount2.totalVotes.toNumber() == 0, "Vote account 2 total votes mismatch.")
-      
+
           const voteAccount3 = await program.account.bondVote.fetch(bondVoteAddress3)
           //assert.ok(String.fromCharCode(...voteAccount3.id).trim() === voteAccount3Id, "Vote account 3 id mismatch");
           //assert.ok(voteAccount3.tokenStateAddress.toBase58() == tokenStateAddress.toBase58(), "Vote account 3 token state address mismatch.")
@@ -933,5 +960,5 @@ describe("re-dao", () => {
       }
 
     }
-  })
+  });
 });

@@ -315,7 +315,7 @@ async function initialize() {
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: anchor.web3.SystemProgram.programId,
     }).rpc()
-    console.log("Your transaction signature", tx);
+    console.log("Your transaction signature", txtopup);
     await new Promise(r => setTimeout(r, 1000));
 
     tokenState = await program.account.tokenState.fetch(tokenStateAddress)

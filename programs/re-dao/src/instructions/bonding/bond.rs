@@ -96,21 +96,22 @@ pub fn handle(ctx: Context<Bond>, id: String, amount: u64, period_index: u8) -> 
         return Err(error!(CustomErrorCode::DisabledPeriodError));
     }
 
+    let mut amount_mut = amount;
     //apply runway fee
-    let runway_fee_amount = fee(
-        amount,
+    let mut runway_fee_amount = fee(
+        amount_mut,
         token_state.runway_fee.into(),
-        token_state.bps.into(),
+        token_state.fee_bps.into(),
     )?;
-    let mut amount_post_fee = amount.checked_sub(runway_fee_amount).or_arith_error()?;
+    let mut amount_post_fee = amount_mut.checked_sub(runway_fee_amount).or_arith_error()?;
 
     //bond cost is 0.01 sol per emission rate so calculate how much should be issued
     let period_length = token_state.period_lengths[period_index as usize];
     let multiplier: u64 = token_state.period_multipliers[period_index as usize].into();
+    let treasury_split: u64 = token_state.treasury_split[period_index as usize].into();
     let cost = token_state.bonding_cost;
     let emissions = token_state.emission_rate;
-    let bps = token_state.bps;
-    let mut reward = bond_reward(amount, cost, emissions, multiplier, bps)?;
+    let mut reward = bond_reward(amount, cost, emissions, multiplier, token_state.reward_bps)?;
     // if the amount issued goes into the next epoch, reduce the amount and advance into the next epoch
     // add to total supply
     let mut new_total_emissions = token_state
@@ -125,11 +126,25 @@ pub fn handle(ctx: Context<Bond>, id: String, amount: u64, period_index: u8) -> 
             .checked_div(token_state.next_halving)
             .or_arith_error()?;
         reward = reward.checked_sub(surplus_emissions).or_arith_error()?;
-        amount_post_fee = bond_amount(reward, cost, emissions, multiplier.into(), bps)?;
+        amount_mut = bond_amount(reward, cost, emissions, multiplier.into(), token_state.fee_bps)?;
+        runway_fee_amount = fee(
+            amount_mut,
+            token_state.runway_fee.into(),
+            token_state.fee_bps.into(),
+        )?;
+        amount_post_fee = amount_mut.checked_sub(runway_fee_amount).or_arith_error()?;
         new_total_emissions = token_state
             .total_emissions
             .checked_add(reward)
             .or_arith_error()?;
+        // msg!(
+        //     "epoch crossover, reducing amounts:=reward-{reward}, {}, {}, {}, {}",
+        //     amount_post_fee,
+        //     cost,
+        //     emissions,
+        //     max_multiplier,
+        //     token_state.reward_bps
+        // );
     }
 
     // mps
@@ -148,9 +163,9 @@ pub fn handle(ctx: Context<Bond>, id: String, amount: u64, period_index: u8) -> 
         cost,
         emissions,
         max_multiplier,
-        bps
+        token_state.reward_bps
     );
-    let mut max_reward = bond_reward(amount, cost, emissions, max_multiplier, bps)?;
+    let mut max_reward = bond_reward(amount, cost, emissions, max_multiplier, token_state.reward_bps)?;
     //add to total maximum supply
     let mut new_total_maximum_emissions =
         token_state.mps.checked_add(max_reward).or_arith_error()?;
@@ -192,12 +207,12 @@ pub fn handle(ctx: Context<Bond>, id: String, amount: u64, period_index: u8) -> 
         "amtpostfee:={},{}, {}",
         amount_post_fee,
         multiplier,
-        token_state.bps
+        token_state.reward_bps
     );
     let growth_pool_amount = fee(
         amount_post_fee,
-        multiplier,
-        token_state.bps.into(),
+        treasury_split,
+        token_state.fee_bps.into(),
     )?;
     let base_pool_amount = amount_post_fee.checked_sub(growth_pool_amount).or_arith_error()?;
     msg!(

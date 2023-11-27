@@ -42,6 +42,7 @@ pub struct TokenState {
     //TODO - how many periods?
     pub period_lengths: [i64; 10], //1256 //the length of bonding
     pub period_multipliers: [u32; 10], //1576 //multiplier for bonding longer
+    pub treasury_split: [u32; 10], //1576 //treasury split
     pub period_enabled: [bool; 10], //1586 //which periods are enabled
     
     //bonding period totals
@@ -55,7 +56,8 @@ pub struct TokenState {
     pub updates_allowed: bool, //1715
     pub launch_date: i64, //1779
     pub runway_fee: u32,
-    pub bps: u32,
+    pub fee_bps: u32,
+    pub reward_bps: u32,
     //indexing
     pub state_index: u64, //1843
     pub id: [u8; 20] //1863 + 92 = 1955

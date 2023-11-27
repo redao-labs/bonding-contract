@@ -43,8 +43,14 @@ pub enum CustomErrorCode {
     InvalidCreator,
     #[msg("Invalid id length!")]
     InvalidIdLength,
-    #[msg("Period lengths must not be larger than 10")]
+    #[msg("Period lengths must be 10")]
     PeriodLengthError,
+    #[msg("Period multiplier must be 10")]
+    PeriodMultiplierError,
+    #[msg("Period treasury split must be 10")]
+    PeriodTreasurySplitError,
+    #[msg("Period enabled must be 10")]
+    PeriodEnabledError,
     #[msg("Zero Error")]
     ZeroError,
     #[msg("Arithmetic Error")]
